@@ -1,0 +1,18 @@
+[package]
+name = "deadpool-tiberius"
+version = "0.1.0"
+edition = "2021"
+authors = ["Geo W"]
+description = "Async mssql server connection pool simple impl of deadpool"
+keywords = ["async", "database", "mssql", "sql server", "pool", "connection pool"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+
+
+
+[dependencies]
+thiserror = "*"
+tiberius = { version = "*"}
+deadpool = "*"
+tokio = { version = "1.1.0", features = ["net"] }
+tokio-util = { version = "0.7", features = ["compat"] }
