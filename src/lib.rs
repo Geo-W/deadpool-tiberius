@@ -1,6 +1,12 @@
 pub use deadpool;
-use deadpool::{async_trait, managed};
-use deadpool::managed::RecycleResult;
+use deadpool::{
+    async_trait,
+    managed,
+    managed::{Metrics, PoolConfig, RecycleResult},
+    Runtime
+};
+use std::time::Duration;
+// use deadpool::managed
 
 pub use tiberius;
 use tiberius::{AuthMethod, EncryptionLevel};
@@ -11,11 +17,12 @@ mod error;
 pub type Client = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
 pub type Pool = managed::Pool<Manager>;
 
-
 pub struct Manager {
     config: tiberius::Config,
+    pool_config: PoolConfig,
+    runtime: Option<Runtime>,
     modify_tcp_stream:
-    Box<dyn Fn(&tokio::net::TcpStream) -> tokio::io::Result<()> + Send + Sync + 'static>,
+        Box<dyn Fn(&tokio::net::TcpStream) -> tokio::io::Result<()> + Send + Sync + 'static>,
 }
 
 #[async_trait]
@@ -29,26 +36,36 @@ impl managed::Manager for Manager {
         let client = Client::connect(self.config.clone(), tcp.compat_write()).await?;
         Ok(client)
     }
-    async fn recycle(&self, obj: &mut Self::Type) -> RecycleResult<Self::Error> {
+    async fn recycle(
+        &self,
+        _obj: &mut Self::Type,
+        // _metrics: &Metrics,
+    ) -> RecycleResult<Self::Error> {
         Ok(())
     }
 }
-
 
 impl Manager {
     pub fn new() -> Self {
         Self {
             config: tiberius::Config::new(),
+            pool_config: PoolConfig::default(),
+            runtime: None,
             modify_tcp_stream: Box::new(|tcp_stream| tcp_stream.set_nodelay(true)),
         }
     }
 
     pub fn create_pool(self) -> Result<Pool, error::Error> {
-        let pool = Pool::builder(self).build().unwrap();
-        Ok(pool)
+        let config = self.pool_config;
+        let runtime = self.runtime;
+        let mut pool = Pool::builder(self).config(config);
+        if let Some(v) = runtime {
+            pool = pool.runtime(v);
+        }
+        Ok(pool.build().unwrap())
     }
 
-    // belows are just copies from tiberius config
+    /// belows are tiberius config
     pub fn host(mut self, host: impl ToString) -> Self {
         self.config.host(host);
         self
@@ -87,5 +104,33 @@ impl Manager {
     pub fn application_name(mut self, name: impl ToString) -> Self {
         self.config.application_name(name);
         self
+    }
+
+    /// belows are pool config
+    pub fn max_size(mut self, value: usize) -> Self {
+        self.pool_config.max_size = value;
+        self
+    }
+
+    pub fn wait_timeout<T: Into<f64> + Copy>(mut self, value: T) -> Self {
+        self.pool_config.timeouts.wait = Some(Duration::from_secs_f64(value.into()));
+        self.set_runtime(Runtime::Tokio1);
+        self
+    }
+
+    pub fn create_timeout<T: Into<f64> + Copy>(mut self, value: T) -> Self {
+        self.pool_config.timeouts.create = Some(Duration::from_secs_f64(value.into()));
+        self.set_runtime(Runtime::Tokio1);
+        self
+    }
+
+    pub fn recycle_timeout<T: Into<f64> + Copy>(mut self, value: T) -> Self {
+        self.pool_config.timeouts.recycle = Some(Duration::from_secs_f64(value.into()));
+        self.set_runtime(Runtime::Tokio1);
+        self
+    }
+
+    fn set_runtime(&mut self, value: Runtime) {
+        self.runtime = Some(value);
     }
 }
