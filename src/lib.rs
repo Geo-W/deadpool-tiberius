@@ -6,7 +6,6 @@ use deadpool::{
     Runtime
 };
 use std::time::Duration;
-// use deadpool::managed
 
 pub use tiberius;
 use tiberius::{AuthMethod, EncryptionLevel};
@@ -23,19 +22,35 @@ pub struct Manager {
     runtime: Option<Runtime>,
     modify_tcp_stream:
         Box<dyn Fn(&tokio::net::TcpStream) -> tokio::io::Result<()> + Send + Sync + 'static>,
+    enable_sql_browser: bool
 }
 
 #[async_trait]
 impl managed::Manager for Manager {
     type Type = Client;
-    type Error = error::Error;
+    type Error = crate::error::Error;
 
+    #[cfg(feature = "sql-browser")]
     async fn create(&self) -> Result<Client, Self::Error> {
+        use tiberius::SqlBrowser;
+        let tcp = if !self.enable_sql_browser {
+            tokio::net::TcpStream::connect(self.config.get_addr()).await?
+        } else {
+            tokio::net::TcpStream::connect_named(&self.config).await?
+        };
+        (self.modify_tcp_stream)(&tcp)?;
+        let client = Client::connect(self.config.clone(), tcp.compat_write()).await?;
+        Ok(client)
+    }
+
+    #[cfg(not(feature = "sql-browser"))]
+        async fn create(&self) -> Result<Client, Self::Error> {
         let tcp = tokio::net::TcpStream::connect(self.config.get_addr()).await?;
         (self.modify_tcp_stream)(&tcp)?;
         let client = Client::connect(self.config.clone(), tcp.compat_write()).await?;
         Ok(client)
     }
+
     async fn recycle(
         &self,
         _obj: &mut Self::Type,
@@ -52,6 +67,7 @@ impl Manager {
             pool_config: PoolConfig::default(),
             runtime: None,
             modify_tcp_stream: Box::new(|tcp_stream| tcp_stream.set_nodelay(true)),
+            enable_sql_browser: false
         }
     }
 
@@ -63,6 +79,12 @@ impl Manager {
             pool = pool.runtime(v);
         }
         Ok(pool.build().unwrap())
+    }
+
+    #[cfg(feature = "sql-browser")]
+    pub fn enable_sql_browser(mut self) -> Self {
+        self.enable_sql_browser = true;
+        self
     }
 
     /// belows are tiberius config
