@@ -1,15 +1,17 @@
+use std::time::Duration;
+
 pub use deadpool;
 use deadpool::{
     async_trait,
     managed,
-    managed::{Metrics, PoolConfig, RecycleResult},
+    managed::{PoolConfig, RecycleResult},
     Runtime
 };
-use std::time::Duration;
+use deadpool::managed::RecycleError;
+use tokio_util::compat::TokioAsyncWriteCompatExt;
 
 pub use tiberius;
 use tiberius::{AuthMethod, EncryptionLevel};
-use tokio_util::compat::TokioAsyncWriteCompatExt;
 
 mod error;
 
@@ -53,10 +55,13 @@ impl managed::Manager for Manager {
 
     async fn recycle(
         &self,
-        _obj: &mut Self::Type,
+        conn: &mut Self::Type,
         // _metrics: &Metrics,
     ) -> RecycleResult<Self::Error> {
-        Ok(())
+        match conn.simple_query("").await{
+            Ok(_) => Ok(()),
+            Err(e) => Err(RecycleError::Message(e.to_string()))
+        }
     }
 }
 
