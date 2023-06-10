@@ -1,17 +1,18 @@
+use std::mem::replace;
 use std::time::Duration;
 
 pub use deadpool;
 use deadpool::{
-    async_trait,
-    managed,
-    managed::{PoolConfig, RecycleResult},
-    Runtime
+    async_trait, managed,
+    managed::{Hook, HookFuture, HookResult, Metrics, PoolConfig, RecycleError, RecycleResult},
+    Runtime,
 };
-use deadpool::managed::RecycleError;
 use tokio_util::compat::TokioAsyncWriteCompatExt;
 
 pub use tiberius;
 use tiberius::{AuthMethod, EncryptionLevel};
+
+use crate::error::Error;
 
 mod error;
 
@@ -22,9 +23,10 @@ pub struct Manager {
     config: tiberius::Config,
     pool_config: PoolConfig,
     runtime: Option<Runtime>,
+    hooks: Hooks,
     modify_tcp_stream:
         Box<dyn Fn(&tokio::net::TcpStream) -> tokio::io::Result<()> + Send + Sync + 'static>,
-    enable_sql_browser: bool
+    enable_sql_browser: bool,
 }
 
 #[async_trait]
@@ -46,7 +48,7 @@ impl managed::Manager for Manager {
     }
 
     #[cfg(not(feature = "sql-browser"))]
-        async fn create(&self) -> Result<Client, Self::Error> {
+    async fn create(&self) -> Result<Client, Self::Error> {
         let tcp = tokio::net::TcpStream::connect(self.config.get_addr()).await?;
         (self.modify_tcp_stream)(&tcp)?;
         let client = Client::connect(self.config.clone(), tcp.compat_write()).await?;
@@ -58,9 +60,9 @@ impl managed::Manager for Manager {
         conn: &mut Self::Type,
         // _metrics: &Metrics,
     ) -> RecycleResult<Self::Error> {
-        match conn.simple_query("").await{
+        match conn.simple_query("").await {
             Ok(_) => Ok(()),
-            Err(e) => Err(RecycleError::Message(e.to_string()))
+            Err(e) => Err(RecycleError::Message(e.to_string())),
         }
     }
 }
@@ -71,18 +73,31 @@ impl Manager {
             config: tiberius::Config::new(),
             pool_config: PoolConfig::default(),
             runtime: None,
+            hooks: Hooks::default(),
             modify_tcp_stream: Box::new(|tcp_stream| tcp_stream.set_nodelay(true)),
-            enable_sql_browser: false
+            enable_sql_browser: false,
         }
     }
 
-    pub fn create_pool(self) -> Result<Pool, error::Error> {
+    pub fn create_pool(mut self) -> Result<Pool, error::Error> {
         let config = self.pool_config;
         let runtime = self.runtime;
+        let hooks = replace(&mut self.hooks, Hooks::default());
         let mut pool = Pool::builder(self).config(config);
         if let Some(v) = runtime {
             pool = pool.runtime(v);
         }
+
+        for hook in hooks.post_create {
+            pool = pool.post_create(hook);
+        }
+        for hook in hooks.pre_recycle {
+            pool = pool.pre_recycle(hook);
+        }
+        for hook in hooks.post_recycle {
+            pool = pool.post_recycle(hook);
+        }
+
         Ok(pool.build().unwrap())
     }
 
@@ -157,7 +172,71 @@ impl Manager {
         self
     }
 
+    pub fn pre_recycle_sync<T>(mut self, hook: T) -> Self
+    where
+        T: Fn(&mut Client, &Metrics) -> HookResult<Error> + Sync + Send + 'static,
+    {
+        self.hooks.pre_recycle.push(Hook::sync_fn(hook));
+        self
+    }
+
+    pub fn pre_recycle_async<T>(mut self, hook: T) -> Self
+    where
+        T: for<'a> Fn(&'a mut Client, &'a Metrics) -> HookFuture<'a, Error> + Sync + Send + 'static,
+    {
+        self.hooks.pre_recycle.push(Hook::async_fn(hook));
+        self
+    }
+
+    pub fn post_recycle_sync<T>(mut self, hook: T) -> Self
+    where
+        T: Fn(&mut Client, &Metrics) -> HookResult<Error> + Sync + Send + 'static,
+    {
+        self.hooks.post_recycle.push(Hook::sync_fn(hook));
+        self
+    }
+
+    pub fn post_recycle_async<T>(mut self, hook: T) -> Self
+    where
+        T: for<'a> Fn(&'a mut Client, &'a Metrics) -> HookFuture<'a, Error> + Sync + Send + 'static,
+    {
+        self.hooks.post_recycle.push(Hook::async_fn(hook));
+        self
+    }
+
+    pub fn post_create_sync<T>(mut self, hook: T) -> Self
+    where
+        T: Fn(&mut Client, &Metrics) -> HookResult<Error> + Sync + Send + 'static,
+    {
+        self.hooks.post_create.push(Hook::sync_fn(hook));
+        self
+    }
+
+    pub fn post_create_async<T>(mut self, hook: T) -> Self
+    where
+        T: for<'a> Fn(&'a mut Client, &'a Metrics) -> HookFuture<'a, Error> + Sync + Send + 'static,
+    {
+        self.hooks.post_create.push(Hook::async_fn(hook));
+        self
+    }
+
     fn set_runtime(&mut self, value: Runtime) {
         self.runtime = Some(value);
+    }
+}
+
+struct Hooks {
+    pre_recycle: Vec<Hook<Manager>>,
+    post_recycle: Vec<Hook<Manager>>,
+    post_create: Vec<Hook<Manager>>,
+}
+
+impl Default for Hooks {
+    fn default() -> Self {
+        Hooks {
+            pre_recycle: Vec::<Hook<Manager>>::new(),
+            post_recycle: Vec::<Hook<Manager>>::new(),
+            post_create: Vec::<Hook<Manager>>::new(),
+        }
     }
 }
