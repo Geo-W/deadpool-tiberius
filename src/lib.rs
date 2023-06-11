@@ -107,7 +107,7 @@ impl Manager {
         self
     }
 
-    /// belows are tiberius config
+    // belows are tiberius config
     pub fn host(mut self, host: impl ToString) -> Self {
         self.config.host(host);
         self
@@ -148,7 +148,7 @@ impl Manager {
         self
     }
 
-    /// belows are pool config
+    // belows are pool config
     pub fn max_size(mut self, value: usize) -> Self {
         self.pool_config.max_size = value;
         self

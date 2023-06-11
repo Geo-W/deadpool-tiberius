@@ -15,6 +15,10 @@ async fn main() -> Result<()> {
         .trust_cert()
         .max_size(10)
         .wait_timeout(1.52)  // in seconds, default to no timeout
+        .pre_recycle_sync(|client, metrics| {
+            // do sth with client object and pool metrics
+            Ok(())
+        })
         .create_pool()?;
     
     let conn = pool.get().await?;

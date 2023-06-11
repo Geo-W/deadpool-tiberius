@@ -1,10 +1,10 @@
 [package]
 name = "deadpool-tiberius"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Geo W"]
-description = "Async mssql server connection pool simple impl of deadpool"
-keywords = ["async", "database", "mssql", "pool", "tiberius"]
+description = "Async ms sql server connection pool simple impl of deadpool"
+keywords = ["async", "database", "sqlserver", "pool", "tiberius"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/Geo-W/deadpool-tiberius"
 readme = "README.md"
