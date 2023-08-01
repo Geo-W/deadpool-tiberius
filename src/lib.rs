@@ -7,12 +7,11 @@ use deadpool::{
     managed::{Hook, HookFuture, HookResult, Metrics, PoolConfig, RecycleError, RecycleResult},
     Runtime,
 };
-use tokio_util::compat::TokioAsyncWriteCompatExt;
-
 pub use tiberius;
 use tiberius::{AuthMethod, EncryptionLevel};
+use tokio_util::compat::TokioAsyncWriteCompatExt;
 
-use crate::error::Error;
+pub use crate::error::{Error, SqlServerResult};
 
 mod error;
 
@@ -26,6 +25,7 @@ pub struct Manager {
     hooks: Hooks,
     modify_tcp_stream:
         Box<dyn Fn(&tokio::net::TcpStream) -> tokio::io::Result<()> + Send + Sync + 'static>,
+    #[cfg(feature = "sql-browser")]
     enable_sql_browser: bool,
 }
 
@@ -75,6 +75,7 @@ impl Manager {
             runtime: None,
             hooks: Hooks::default(),
             modify_tcp_stream: Box::new(|tcp_stream| tcp_stream.set_nodelay(true)),
+            #[cfg(feature = "sql-browser")]
             enable_sql_browser: false,
         }
     }
@@ -113,8 +114,23 @@ impl Manager {
         self
     }
 
+    pub fn port(mut self, port: u16) -> Self {
+        self.config.port(port);
+        self
+    }
+
     pub fn database(mut self, database: impl ToString) -> Self {
         self.config.database(database);
+        self
+    }
+
+    pub fn basic_authentication(
+        mut self,
+        username: impl ToString,
+        password: impl ToString,
+    ) -> Self {
+        self.config
+            .authentication(AuthMethod::sql_server(username, password));
         self
     }
 
