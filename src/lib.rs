@@ -9,9 +9,11 @@ use deadpool::{
 };
 pub use tiberius;
 use tiberius::{AuthMethod, EncryptionLevel};
+use tiberius::error::Error;
 use tokio_util::compat::TokioAsyncWriteCompatExt;
 
-pub use crate::error::{Error, SqlServerResult};
+pub use crate::error::SqlServerError;
+pub use crate::error::SqlServerResult;
 
 mod error;
 
@@ -32,7 +34,7 @@ pub struct Manager {
 #[async_trait]
 impl managed::Manager for Manager {
     type Type = Client;
-    type Error = crate::error::Error;
+    type Error = tiberius::error::Error;
 
     #[cfg(feature = "sql-browser")]
     async fn create(&self) -> Result<Client, Self::Error> {
@@ -80,7 +82,7 @@ impl Manager {
         }
     }
 
-    pub fn create_pool(mut self) -> Result<Pool, error::Error> {
+    pub fn create_pool(mut self) -> Result<Pool, error::SqlServerError> {
         let config = self.pool_config;
         let runtime = self.runtime;
         let hooks = replace(&mut self.hooks, Hooks::default());

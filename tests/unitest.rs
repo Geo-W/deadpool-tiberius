@@ -30,4 +30,16 @@ mod tests {
         }
         main().await.unwrap();
     }
+
+    #[tokio::test]
+    async fn t2() {
+        async fn should_fail() -> SqlServerResult<()> {
+            let pool = deadpool_tiberius::Manager::new()
+                .create_pool()?;
+            println!("pool created");
+            let _ = pool.get().await?;
+            Ok(())
+        }
+        assert!(should_fail().await.is_err());
+    }
 }
