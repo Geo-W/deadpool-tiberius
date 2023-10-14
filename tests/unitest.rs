@@ -42,4 +42,16 @@ mod tests {
         }
         assert!(should_fail().await.is_err());
     }
+
+    #[tokio::test]
+    async fn t3() -> SqlServerResult<()> {
+        const CONN_STR: &str = "Driver={SQL Server};Integrated Security=True;\
+                                Server=DESKTOP-TTTTTTT;Database=master;\
+                                Trusted_Connection=yes;encrypt=DANGER_PLAINTEXT;";
+        let pool = deadpool_tiberius::Manager::from_ado_string(CONN_STR)?
+            .create_pool()?;
+        let mut conn = pool.get().await?;
+        let _ = conn.simple_query("SELECT 1").await?;
+        Ok(())
+    }
 }
