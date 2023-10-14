@@ -1,3 +1,21 @@
+//! This crate chains config from [`tiberius`] and [`deadpool`] to make it easier for creating tiberius connection pool.
+//! # Example
+//! ```no_run
+//! let pool = deadpool_tiberius::Manager::new()
+//!     .host("host")
+//!     .port(1433)
+//!     .basic_authentication("username", "password")
+//!     .database("database1")
+//!     .max_size(20)
+//!     .wait_timeout(1.52)
+//!     .pre_recycle_sync(|_client, _metrics| {
+//!         // do sth with connection object and pool metrics.
+//!         Ok(())
+//!     })
+//!     .create_pool()?;
+//! ```
+//! For all configurable pls visit [`Manager`]
+#![warn(missing_docs)]
 use std::mem::replace;
 use std::time::Duration;
 
@@ -17,9 +35,14 @@ pub use crate::error::SqlServerResult;
 
 mod error;
 
+/// Type aliasing for tiberius client with [`tokio`] as runtime.
 pub type Client = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
+/// Type aliasing for Pool.
 pub type Pool = managed::Pool<Manager>;
 
+/// Connection pool Manager served as Builder. Call [`create_pool`] after filling out your configs.
+///
+/// [`create_pool`]: struct.Manager.html#method.create_pool
 pub struct Manager {
     config: tiberius::Config,
     pool_config: PoolConfig,
@@ -70,6 +93,7 @@ impl managed::Manager for Manager {
 }
 
 impl Manager {
+    /// Create new ConnectionPool Manager
     pub fn new() -> Self {
         Self {
             config: tiberius::Config::new(),
@@ -82,6 +106,7 @@ impl Manager {
         }
     }
 
+    /// Consume self, builds a pool.
     pub fn create_pool(mut self) -> Result<Pool, error::SqlServerError> {
         let config = self.pool_config;
         let runtime = self.runtime;
@@ -101,7 +126,7 @@ impl Manager {
             pool = pool.post_recycle(hook);
         }
 
-        Ok(pool.build().unwrap())
+        Ok(pool.build()?)
     }
 
     #[cfg(feature = "sql-browser")]
@@ -110,22 +135,25 @@ impl Manager {
         self
     }
 
-    // belows are tiberius config
+    /// Server host, defaults to `localhost`.
     pub fn host(mut self, host: impl ToString) -> Self {
         self.config.host(host);
         self
     }
 
+    /// Server port, defaults to 1433.
     pub fn port(mut self, port: u16) -> Self {
         self.config.port(port);
         self
     }
 
+    /// Database, defaults to `master`.
     pub fn database(mut self, database: impl ToString) -> Self {
         self.config.database(database);
         self
     }
 
+    /// Simplified authentication for those using `username` and `password` as login method.
     pub fn basic_authentication(
         mut self,
         username: impl ToString,
@@ -136,60 +164,71 @@ impl Manager {
         self
     }
 
+    /// Set [`tiberius::AuthMethod`] as authentication method.
     pub fn authentication(mut self, authentication: AuthMethod) -> Self {
         self.config.authentication(authentication);
         self
     }
 
+    /// See [`tiberius::Config::trust_cert`]
     pub fn trust_cert(mut self) -> Self {
         self.config.trust_cert();
         self
     }
 
+    /// Set [`tiberius::EncryptionLevel`] as enctryption method.
     pub fn encryption(mut self, encryption: EncryptionLevel) -> Self {
         self.config.encryption(encryption);
         self
     }
 
+    /// See [`tiberius::Config::trust_cert_ca`]
     pub fn trust_cert_ca(mut self, path: impl ToString) -> Self {
         self.config.trust_cert_ca(path);
         self
     }
 
+    /// Instance name defined in `Sql Browser`, defaults to None.
     pub fn instance_name(mut self, name: impl ToString) -> Self {
         self.config.instance_name(name);
         self
     }
 
+    /// See [`tiberius::Config::application_name`]
     pub fn application_name(mut self, name: impl ToString) -> Self {
         self.config.application_name(name);
         self
     }
 
-    // belows are pool config
+    /// Set pool size, defaults to 10.
     pub fn max_size(mut self, value: usize) -> Self {
         self.pool_config.max_size = value;
         self
     }
 
+    /// Set timeout for when waiting for a connection object to become available.
     pub fn wait_timeout<T: Into<f64> + Copy>(mut self, value: T) -> Self {
         self.pool_config.timeouts.wait = Some(Duration::from_secs_f64(value.into()));
         self.set_runtime(Runtime::Tokio1);
         self
     }
 
+    /// Set timeout for when creating a new connection object.
     pub fn create_timeout<T: Into<f64> + Copy>(mut self, value: T) -> Self {
         self.pool_config.timeouts.create = Some(Duration::from_secs_f64(value.into()));
         self.set_runtime(Runtime::Tokio1);
         self
     }
 
+    /// Set timeout for when recycling a connection object.
     pub fn recycle_timeout<T: Into<f64> + Copy>(mut self, value: T) -> Self {
         self.pool_config.timeouts.recycle = Some(Duration::from_secs_f64(value.into()));
         self.set_runtime(Runtime::Tokio1);
         self
     }
 
+    /// Attach a `sync fn` as hook to connection pool.
+    /// The hook will be called each time before a connection [`deadpool::managed::Object`] is recycled.
     pub fn pre_recycle_sync<T>(mut self, hook: T) -> Self
     where
         T: Fn(&mut Client, &Metrics) -> HookResult<Error> + Sync + Send + 'static,
@@ -198,6 +237,8 @@ impl Manager {
         self
     }
 
+    /// Attach an `async fn` as hook to connection pool.
+    /// The hook will be called each time before a connection [`deadpool::managed::Object`] is recycled.
     pub fn pre_recycle_async<T>(mut self, hook: T) -> Self
     where
         T: for<'a> Fn(&'a mut Client, &'a Metrics) -> HookFuture<'a, Error> + Sync + Send + 'static,
@@ -206,6 +247,8 @@ impl Manager {
         self
     }
 
+    /// Attach a `sync fn` as hook to connection pool.
+    /// The hook will be called each time af after a connection [`deadpool::managed::Object`] is recycled.
     pub fn post_recycle_sync<T>(mut self, hook: T) -> Self
     where
         T: Fn(&mut Client, &Metrics) -> HookResult<Error> + Sync + Send + 'static,
@@ -214,6 +257,8 @@ impl Manager {
         self
     }
 
+    /// Attach an `async fn` as hook to connection pool.
+    /// The hook will be called each time after a connection [`deadpool::managed::Object`] is recycled.
     pub fn post_recycle_async<T>(mut self, hook: T) -> Self
     where
         T: for<'a> Fn(&'a mut Client, &'a Metrics) -> HookFuture<'a, Error> + Sync + Send + 'static,
@@ -222,6 +267,8 @@ impl Manager {
         self
     }
 
+    /// Attach a `sync fn` as hook to connection pool.
+    /// The hook will be called each time after a connection [`deadpool::managed::Object`] is created.
     pub fn post_create_sync<T>(mut self, hook: T) -> Self
     where
         T: Fn(&mut Client, &Metrics) -> HookResult<Error> + Sync + Send + 'static,
@@ -230,6 +277,8 @@ impl Manager {
         self
     }
 
+    /// Attach an `async fn` as hook to connection pool.
+    /// The hook will be called each time after a connection [`deadpool::managed::Object`] is created.
     pub fn post_create_async<T>(mut self, hook: T) -> Self
     where
         T: for<'a> Fn(&'a mut Client, &'a Metrics) -> HookFuture<'a, Error> + Sync + Send + 'static,
