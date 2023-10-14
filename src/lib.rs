@@ -14,7 +14,18 @@
 //!     })
 //!     .create_pool()?;
 //! ```
-//! For all configurable pls visit [`Manager`]
+//!
+//! [`Manager::from_ado_string`] and [`Manager::from_jdbc_string`] also served as another entry for constructing Manager.
+//! ```no_run
+//! const CONN_STR: &str = "Driver={SQL Server};Integrated Security=True;\
+//!                         Server=DESKTOP-TTTTTTT;Database=master;\
+//!                         Trusted_Connection=yes;encrypt=DANGER_PLAINTEXT;";
+//! let pool = deadpool_tiberius::Manager::from_ado_string(CONN_STR)?
+//!                 .max_size(20)
+//!                 .wait_timeout(1.52)
+//!                 .create_pool()?;
+//! ```
+//! For all configurable pls visit [`Manager`].
 #![warn(missing_docs)]
 use std::mem::replace;
 use std::time::Duration;
@@ -95,11 +106,39 @@ impl managed::Manager for Manager {
 impl Manager {
     /// Create new ConnectionPool Manager
     pub fn new() -> Self {
-        Self {
-            config: tiberius::Config::new(),
-            pool_config: PoolConfig::default(),
+        Self::new_with_tiberius_config(tiberius::Config::new())
+    }
+
+    /// Create a new ConnectionPool Manager and fills connection configs from ado string.
+    /// For more details about ADO_String pleas refer to [`tiberius::Config::from_ado_string`] and [`Connection Strings in ADO.NET`].
+    ///
+    /// [`Connection Strings in ADO.NET`]: https://docs.microsoft.com/en-us/dotnet/framework/data/adonet/connection-strings
+    pub fn from_ado_string(conn_str: &str) -> SqlServerResult<Self> {
+        Ok(
+            Self::new_with_tiberius_config(
+                tiberius::Config::from_ado_string(conn_str)?
+            )
+        )
+    }
+
+    /// Create new ConnectionPool Manager and fills connection config from jdbc string.
+    /// For more details about jdbc_string pls refer to [`Building JDBC connection URL`].
+    ///
+    /// [`Building JDBC connection URL`]: https://docs.microsoft.com/en-us/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15
+    pub fn from_jdbc_string(conn_str: &str) -> SqlServerResult<Self> {
+        Ok(
+            Self::new_with_tiberius_config(
+                tiberius::Config::from_jdbc_string(conn_str)?
+            )
+        )
+    }
+
+    fn new_with_tiberius_config(config: tiberius::Config) -> Self{
+        Self{
+            config,
+            pool_config: Default::default(),
             runtime: None,
-            hooks: Hooks::default(),
+            hooks: Default::default(),
             modify_tcp_stream: Box::new(|tcp_stream| tcp_stream.set_nodelay(true)),
             #[cfg(feature = "sql-browser")]
             enable_sql_browser: false,
