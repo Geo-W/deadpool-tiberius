@@ -37,8 +37,8 @@ use deadpool::{
     Runtime,
 };
 pub use tiberius;
-use tiberius::{AuthMethod, EncryptionLevel};
 use tiberius::error::Error;
+use tiberius::{AuthMethod, EncryptionLevel};
 use tokio_util::compat::TokioAsyncWriteCompatExt;
 
 pub use crate::error::SqlServerError;
@@ -93,10 +93,10 @@ impl managed::Manager for Manager {
 
     async fn recycle(
         &self,
-        conn: &mut Self::Type,
-        // _metrics: &Metrics,
+        obj: &mut Self::Type,
+        _metrics: &Metrics,
     ) -> RecycleResult<Self::Error> {
-        match conn.simple_query("").await {
+        match obj.simple_query("").await {
             Ok(_) => Ok(()),
             Err(e) => Err(RecycleError::Message(e.to_string())),
         }
@@ -114,11 +114,9 @@ impl Manager {
     ///
     /// [`Connection Strings in ADO.NET`]: https://docs.microsoft.com/en-us/dotnet/framework/data/adonet/connection-strings
     pub fn from_ado_string(conn_str: &str) -> SqlServerResult<Self> {
-        Ok(
-            Self::new_with_tiberius_config(
-                tiberius::Config::from_ado_string(conn_str)?
-            )
-        )
+        Ok(Self::new_with_tiberius_config(
+            tiberius::Config::from_ado_string(conn_str)?,
+        ))
     }
 
     /// Create new ConnectionPool Manager and fills connection config from jdbc string.
@@ -126,15 +124,13 @@ impl Manager {
     ///
     /// [`Building JDBC connection URL`]: https://docs.microsoft.com/en-us/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15
     pub fn from_jdbc_string(conn_str: &str) -> SqlServerResult<Self> {
-        Ok(
-            Self::new_with_tiberius_config(
-                tiberius::Config::from_jdbc_string(conn_str)?
-            )
-        )
+        Ok(Self::new_with_tiberius_config(
+            tiberius::Config::from_jdbc_string(conn_str)?,
+        ))
     }
 
-    fn new_with_tiberius_config(config: tiberius::Config) -> Self{
-        Self{
+    fn new_with_tiberius_config(config: tiberius::Config) -> Self {
+        Self {
             config,
             pool_config: Default::default(),
             runtime: None,

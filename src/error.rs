@@ -1,6 +1,6 @@
 use deadpool::managed::{BuildError, PoolError};
 
-/// Type aliasing for Result<T,[`SqlServerError`]>
+/// Type aliasing for Result<T, [`SqlServerError`]>
 pub type SqlServerResult<T> = Result<T, SqlServerError>;
 
 /// Error type represents error from building pool, running pool, tiberius execution, io.
@@ -17,5 +17,5 @@ pub enum SqlServerError {
     Pool(#[from] PoolError<tiberius::error::Error>),
     /// Error from when building pool.
     #[error(transparent)]
-    PoolBuild(#[from] BuildError<tiberius::error::Error>),
+    PoolBuild(#[from] BuildError),
 }
