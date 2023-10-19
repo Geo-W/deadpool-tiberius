@@ -27,6 +27,7 @@
 //! ```
 //! For all configurable pls visit [`Manager`].
 #![warn(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 use std::mem::replace;
 use std::time::Duration;
 
@@ -164,7 +165,9 @@ impl Manager {
         Ok(pool.build()?)
     }
 
+    /// Whether connected via sql-browser feature, default to `false`.
     #[cfg(feature = "sql-browser")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sql-browser")))]
     pub fn enable_sql_browser(mut self) -> Self {
         self.enable_sql_browser = true;
         self

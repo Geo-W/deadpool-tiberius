@@ -9,6 +9,9 @@ license = "MIT/Apache-2.0"
 repository = "https://github.com/Geo-W/deadpool-tiberius"
 readme = "README.md"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 
 [dependencies]
