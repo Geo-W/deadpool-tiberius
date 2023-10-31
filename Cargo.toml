@@ -16,15 +16,22 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 thiserror = "1.0.49"
-tiberius = { version = "0.12.2"}
-deadpool = { version ="0.10.0", features = ["rt_tokio_1"] }
+tiberius = { version = "0.12.2", default-features = false }
+deadpool = { version = "0.10.0", features = ["rt_tokio_1"] }
 tokio = { version = "1.33.0", features = ["net"] }
 tokio-util = { version = "0.7.9", features = ["compat"] }
 
 
 [features]
+default = ["tiberius/default"]
+all = ["tiberius/all"]
 sql-browser = ["tiberius/sql-browser-tokio"]
 chrono = ["tiberius/chrono"]
+rustls = ["tiberius/rustls"]
+tds73 = ["tiberius/tds73"]
+winauth = ["tiberius/winauth"]
+native-tls = ["tiberius/native-tls"]
+opentls = ["tiberius/opentls"]
 
 [dev-dependencies]
 futures-lite = "1.13.0"
