@@ -1,6 +1,6 @@
 [package]
 name = "deadpool-tiberius"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 authors = ["Geo W"]
 description = "Async ms sql server connection pool simple impl of deadpool"
