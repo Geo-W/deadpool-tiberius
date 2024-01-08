@@ -1,6 +1,6 @@
 [package]
 name = "deadpool-tiberius"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 authors = ["Geo W"]
 description = "Async ms sql server connection pool simple impl of deadpool"
@@ -10,7 +10,7 @@ repository = "https://github.com/Geo-W/deadpool-tiberius"
 readme = "README.md"
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["all"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 
