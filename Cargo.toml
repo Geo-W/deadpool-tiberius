@@ -8,6 +8,7 @@ keywords = ["async", "database", "sqlserver", "pool", "tiberius"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/Geo-W/deadpool-tiberius"
 readme = "README.md"
+exclude = ["/.idea/"]
 
 [package.metadata.docs.rs]
 features = ["all"]
