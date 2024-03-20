@@ -1,6 +1,6 @@
 [package]
 name = "deadpool-tiberius"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 authors = ["Geo W"]
 description = "Async ms sql server connection pool simple impl of deadpool"
@@ -33,6 +33,8 @@ tds73 = ["tiberius/tds73"]
 winauth = ["tiberius/winauth"]
 native-tls = ["tiberius/native-tls"]
 opentls = ["tiberius/opentls"]
+bigdecimal = ["tiberius/bigdecimal"]
+rust_decimal = ["tiberius/rust_decimal"]
 
 [dev-dependencies]
 futures-lite = "1.13.0"
