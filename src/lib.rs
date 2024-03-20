@@ -80,16 +80,45 @@ impl managed::Manager for Manager {
             tokio::net::TcpStream::connect_named(&self.config).await?
         };
         (self.modify_tcp_stream)(&tcp)?;
-        let client = Client::connect(self.config.clone(), tcp.compat_write()).await?;
-        Ok(client)
+        let client = Client::connect(self.config.clone(), tcp.compat_write()).await;
+        match client {
+            Ok(client) => Ok(client),
+            Err(Error::Routing { host, port }) => {
+                let mut config = self.config.clone();
+                config.host(host);
+                config.port(port);
+
+                let tcp = tokio::net::TcpStream::connect(config.get_addr()).await?;
+                tcp.set_nodelay(true)?;
+
+                Client::connect(config, tcp.compat_write()).await
+            },
+            // Propagate errors
+            Err(err) => Err(err)?,
+        }
     }
 
     #[cfg(not(feature = "sql-browser"))]
     async fn create(&self) -> Result<Client, Self::Error> {
         let tcp = tokio::net::TcpStream::connect(self.config.get_addr()).await?;
         (self.modify_tcp_stream)(&tcp)?;
-        let client = Client::connect(self.config.clone(), tcp.compat_write()).await?;
-        Ok(client)
+        let client = Client::connect(self.config.clone(), tcp.compat_write()).await;
+
+        match client {
+            Ok(client) => Ok(client),
+            Err(Error::Routing { host, port }) => {
+                let mut config = self.config.clone();
+                config.host(host);
+                config.port(port);
+
+                let tcp = tokio::net::TcpStream::connect(config.get_addr()).await?;
+                tcp.set_nodelay(true)?;
+
+                Client::connect(config, tcp.compat_write()).await
+            },
+            // Propagate errors
+            Err(err) => Err(err)?,
+        }
     }
 
     async fn recycle(
