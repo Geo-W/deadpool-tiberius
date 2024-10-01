@@ -274,22 +274,22 @@ impl Manager {
     }
 
     /// Set timeout for when waiting for a connection object to become available.
-    pub fn wait_timeout<T: Into<f64> + Copy>(mut self, value: T) -> Self {
-        self.pool_config.timeouts.wait = Some(Duration::from_secs_f64(value.into()));
+    pub fn wait_timeout(mut self, value: Duration) -> Self {
+        self.pool_config.timeouts.wait = Some(value);
         self.set_runtime(Runtime::Tokio1);
         self
     }
 
     /// Set timeout for when creating a new connection object.
-    pub fn create_timeout<T: Into<f64> + Copy>(mut self, value: T) -> Self {
-        self.pool_config.timeouts.create = Some(Duration::from_secs_f64(value.into()));
+    pub fn create_timeout(mut self, value: Duration) -> Self {
+        self.pool_config.timeouts.create = Some(value);
         self.set_runtime(Runtime::Tokio1);
         self
     }
 
     /// Set timeout for when recycling a connection object.
-    pub fn recycle_timeout<T: Into<f64> + Copy>(mut self, value: T) -> Self {
-        self.pool_config.timeouts.recycle = Some(Duration::from_secs_f64(value.into()));
+    pub fn recycle_timeout(mut self, value: Duration) -> Self {
+        self.pool_config.timeouts.recycle = Some(value);
         self.set_runtime(Runtime::Tokio1);
         self
     }
