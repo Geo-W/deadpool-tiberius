@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use tokio;
     use deadpool_tiberius::SqlServerResult;
     use futures_lite::stream::StreamExt;
@@ -14,7 +16,7 @@ mod tests {
                 .database("database")
                 .trust_cert()
                 .max_size(10)
-                .wait_timeout(1.52)  // in seconds, default to no timeout
+                .wait_timeout(Duration::from_secs_f64(1.52))
                 .pre_recycle_sync(|_client, _metrics| {
                     // do sth with client object and pool metrics
                     Ok(())
