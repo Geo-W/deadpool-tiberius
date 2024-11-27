@@ -1,6 +1,6 @@
 //! This crate chains config from [`tiberius`] and [`deadpool`] to make it easier for creating tiberius connection pool.
 //! # Example
-//! ```no_run
+//! ``` no_run
 //! let pool = deadpool_tiberius::Manager::new()
 //!     .host("host")
 //!     .port(1433)
@@ -28,12 +28,11 @@
 //! For all configurable pls visit [`Manager`].
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-use std::mem::replace;
 use std::time::Duration;
 
 pub use deadpool;
 use deadpool::{
-    async_trait, managed,
+    managed,
     managed::{Hook, HookFuture, HookResult, Metrics, PoolConfig, RecycleError, RecycleResult},
     Runtime,
 };
@@ -66,7 +65,6 @@ pub struct Manager {
     enable_sql_browser: bool,
 }
 
-#[async_trait]
 impl managed::Manager for Manager {
     type Type = Client;
     type Error = tiberius::error::Error;
@@ -92,7 +90,7 @@ impl managed::Manager for Manager {
                 tcp.set_nodelay(true)?;
 
                 Client::connect(config, tcp.compat_write()).await
-            },
+            }
             // Propagate errors
             Err(err) => Err(err)?,
         }
@@ -115,7 +113,7 @@ impl managed::Manager for Manager {
                 tcp.set_nodelay(true)?;
 
                 Client::connect(config, tcp.compat_write()).await
-            },
+            }
             // Propagate errors
             Err(err) => Err(err)?,
         }
@@ -128,7 +126,7 @@ impl managed::Manager for Manager {
     ) -> RecycleResult<Self::Error> {
         match obj.simple_query("").await {
             Ok(_) => Ok(()),
-            Err(e) => Err(RecycleError::Message(e.to_string())),
+            Err(e) => Err(RecycleError::Message(e.to_string().into())),
         }
     }
 }
@@ -175,7 +173,7 @@ impl Manager {
     pub fn create_pool(mut self) -> Result<Pool, error::SqlServerError> {
         let config = self.pool_config;
         let runtime = self.runtime;
-        let hooks = replace(&mut self.hooks, Hooks::default());
+        let hooks = std::mem::take(&mut self.hooks);
         let mut pool = Pool::builder(self).config(config);
         if let Some(v) = runtime {
             pool = pool.runtime(v);
@@ -359,18 +357,9 @@ impl Manager {
     }
 }
 
+#[derive(Default)]
 struct Hooks {
     pre_recycle: Vec<Hook<Manager>>,
     post_recycle: Vec<Hook<Manager>>,
     post_create: Vec<Hook<Manager>>,
-}
-
-impl Default for Hooks {
-    fn default() -> Self {
-        Hooks {
-            pre_recycle: Vec::<Hook<Manager>>::new(),
-            post_recycle: Vec::<Hook<Manager>>::new(),
-            post_create: Vec::<Hook<Manager>>::new(),
-        }
-    }
 }
