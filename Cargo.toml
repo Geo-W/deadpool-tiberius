@@ -16,11 +16,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 
 [dependencies]
-thiserror = "1.0.49"
-tiberius = { version = "0.12.2", default-features = false }
-deadpool = { version = "0.10.0", features = ["rt_tokio_1"] }
-tokio = { version = "1.33.0", features = ["net"] }
-tokio-util = { version = "0.7.9", features = ["compat"] }
+thiserror = "2.0"
+tiberius = { version = "0.12", default-features = false }
+deadpool = { version = "0.12", features = ["rt_tokio_1"] }
+tokio = { version = "1.41", features = ["net"] }
+tokio-util = { version = "0.7", features = ["compat"] }
 
 
 [features]
@@ -38,5 +38,5 @@ bigdecimal = ["tiberius/bigdecimal"]
 rust_decimal = ["tiberius/rust_decimal"]
 
 [dev-dependencies]
-futures-lite = "1.13.0"
-tokio = { version = "1.33.0", features = ["net", "macros"] }
+futures-lite = "2.5"
+tokio = { version = "1.41", features = ["net", "macros"] }
