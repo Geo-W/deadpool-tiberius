@@ -7,12 +7,13 @@
 //!     .basic_authentication("username", "password")
 //!     .database("database1")
 //!     .max_size(20)
-//!     .wait_timeout(1.52)
+//!     .wait_timeout(std::time::Duration::from_secs_f64(1.52))
 //!     .pre_recycle_sync(|_client, _metrics| {
 //!         // do sth with connection object and pool metrics.
 //!         Ok(())
 //!     })
 //!     .create_pool()?;
+//! # Ok::<(), deadpool_tiberius::SqlServerError>(())
 //! ```
 //!
 //! [`Manager::from_ado_string`] and [`Manager::from_jdbc_string`] also served as another entry for constructing Manager.
@@ -22,8 +23,9 @@
 //!                         Trusted_Connection=yes;encrypt=DANGER_PLAINTEXT;";
 //! let pool = deadpool_tiberius::Manager::from_ado_string(CONN_STR)?
 //!                 .max_size(20)
-//!                 .wait_timeout(1.52)
+//!                 .wait_timeout(std::time::Duration::from_secs_f64(1.52))
 //!                 .create_pool()?;
+//! # Ok::<(), deadpool_tiberius::SqlServerError>(())
 //! ```
 //! For all configurable pls visit [`Manager`].
 #![warn(missing_docs)]
