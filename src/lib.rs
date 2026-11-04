@@ -25,6 +25,10 @@
 //!                 .wait_timeout(1.52)
 //!                 .create_pool()?;
 //! ```
+//!
+//! For [`tiberius::Config`] options that [`Manager`] has no setter for, such as the command timeout
+//! added in tiberius 0.13, build the config yourself and convert it with `Manager::from(config)`.
+//!
 //! For all configurable pls visit [`Manager`].
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -357,9 +361,49 @@ impl Manager {
     }
 }
 
+/// Create a Manager from an existing [`tiberius::Config`].
+///
+/// Use this for [`tiberius::Config`] options that [`Manager`] has no setter for. For example,
+/// tiberius 0.13 fails a command after 30 seconds without a response from the server by default;
+/// call `config.command_timeout(None)` before the conversion to wait indefinitely instead.
+///
+/// The [`Manager`] setters can still be chained afterwards.
+///
+/// ```
+/// let mut config = deadpool_tiberius::tiberius::Config::new();
+/// config.host("localhost");
+/// config.readonly(true);
+///
+/// let pool = deadpool_tiberius::Manager::from(config)
+///     .basic_authentication("username", "password")
+///     .max_size(20)
+///     .create_pool()?;
+/// # Ok::<(), deadpool_tiberius::SqlServerError>(())
+/// ```
+impl From<tiberius::Config> for Manager {
+    fn from(config: tiberius::Config) -> Self {
+        Self::new_with_tiberius_config(config)
+    }
+}
+
 #[derive(Default)]
 struct Hooks {
     pre_recycle: Vec<Hook<Manager>>,
     post_recycle: Vec<Hook<Manager>>,
     post_create: Vec<Hook<Manager>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Manager;
+
+    #[test]
+    fn from_tiberius_config_keeps_config() {
+        let mut config = tiberius::Config::new();
+        config.host("db.example.com");
+        config.port(14330);
+
+        let manager = Manager::from(config);
+        assert_eq!(manager.config.get_addr(), "db.example.com:14330");
+    }
 }
