@@ -19,7 +19,7 @@ async fn main() -> deadpool_tiberius::SqlServerResult<()> {
         .database("database1")
         .trust_cert()
         .max_size(10)
-        .wait_timeout(1.52)  // in seconds, default to no timeout
+        .wait_timeout(std::time::Duration::from_secs_f64(1.52)) // default to no timeout
         .pre_recycle_sync(|_client, _metrics| {
             // do sth with client object and pool metrics
             Ok(())
@@ -27,15 +27,16 @@ async fn main() -> deadpool_tiberius::SqlServerResult<()> {
         .create_pool()?;
 
     let mut conn = pool.get().await?;
-    let rows = conn.simple_query("SELECT 1");
+    let _rows = conn.simple_query("SELECT 1").await?;
 
     // Or construct server connection config from ADO string.
     const CONN_STR: &str = "Driver={SQL Server};Integrated Security=True;\
                             Server=DESKTOP-TTTTTTT;Database=master;\
                             Trusted_Connection=yes;encrypt=DANGER_PLAINTEXT;";
-    let _pool = deadpool_tiberius::Manager::from_ado_string(CONN_STR)
+    let _pool = deadpool_tiberius::Manager::from_ado_string(CONN_STR)?
         .max_size(20)
         .create_pool()?;
+    Ok(())
 }
 
 ```
